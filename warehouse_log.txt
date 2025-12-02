@@ -1,0 +1,2 @@
+{"warehouseId":"Wien-Hauptbahnhof","quantity":150,"timestamp":"2025-12-02T15:35:43.138712675Z"}
+{"warehouseId":"Graz-West","quantity":320,"timestamp":"2025-12-02T15:35:54.332905618Z"}
