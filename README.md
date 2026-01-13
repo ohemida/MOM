@@ -80,10 +80,3 @@ Das bedeutet, dass die Teile eines Systems unabhängig voneinander funktionieren
 
 * **Beispiel:** Eine Bestellung im Online-Shop. Ich gebe die Bestellung auf (Sender). Der Verpacker im Lager (Empfänger) sieht das vielleicht erst Stunden später.
 * **Warum "lose"?** Weil es egal ist, wann der Empfänger arbeitet oder welche Technik er nutzt – die Nachricht (Bestellung) wartet einfach in der Mitte, bis sie gebraucht wird.
-
----
-
-**Tipp für die Abgabe:**
-Wenn du gefragt wirst, warum wir Kafka statt "echtem" JMS nutzen: Sag einfach, dass Kafka moderner ist und viel größere Datenmengen (Big Data) verarbeiten kann als alte JMS-Systeme.
-
-Soll ich dir noch ein kurzes Beispiel für die `warehouse_log.txt` erstellen, damit du siehst, wie die Daten darin aussehen sollten?
