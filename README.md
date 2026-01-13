@@ -1,89 +1,89 @@
-# Protokoll: Durchführung und Fragestellungen
+# Protokoll: Lager-Kommunikation mit Apache Kafka
 
 **Name:** Hemida Omar
+
 **Datum:** 02.12.2025
 
-## 1. Durchführung und Tests
+## 1. Was wurde gemacht? 
 
-### 1.1 Starten der Umgebung
-Zuerst muss die Infrastruktur (Zookeeper und Kafka) mittels Docker gestartet werden:
+### 1.1 Starten der Systeme
+
+Zuerst habe ich die Infrastruktur mit Docker gestartet:
 
 ```bash
 docker-compose up -d
+
 ```
 
-Anschließend werden die beiden Spring-Boot-Instanzen gestartet. Durch die Konfiguration in der `application.yml` und die Nutzung von Spring Profiles laufen diese auf unterschiedlichen Ports:
+Danach habe ich die beiden Programme gestartet:
 
-1.  **Consumer (Zentrale)** starten: `ConsumerMain` (läuft auf Port **8081**).
-2.  **Producer (Lager)** starten: `ProducerMain` (läuft auf Port **8080**).
+1. **Die Zentrale** (Empfänger): Läuft auf Port **8081**.
+2. **Das Lager** (Sender): Läuft auf Port **8080**.
 
-### 1.2 Szenario: Datenübertragung (Lager -> Zentrale)
-Ein Lagerstandort sendet Bestandsdaten an die Message Queue. Da der Producer auf Port 8080 läuft, wird der Request dorthin gesendet:
+### 1.2 Daten vom Lager an die Zentrale schicken
+
+Wenn ein Lager seine Bestände meldet, passiert folgendes:
+
+1. Das Lager schickt die Daten per HTTP-Befehl ab:
 
 ```bash
 curl -X POST http://localhost:8080/warehouse/send \
-     -H "Content-Type: application/json" \
-     -d '{"warehouseId": "Wien-Hauptbahnhof", "quantity": 150}'
+     -d '{"warehouseId": "Wien-Nord", "quantity": 500}'
+
 ```
 
-**Erwartetes Verhalten:**
-*   **Producer-Konsole:** Zeigt den Versand der Nachricht und empfängt kurz darauf die Bestätigung (`SUCCESS...`) über das Rückkanal-Topic.
-*   **Consumer-Konsole:** Zeigt den Empfang der Nachricht an.
-*   **Log-Datei:** Im Projektordner wird automatisch eine Datei `warehouse_log.txt` erstellt/aktualisiert, die den JSON-Datensatz enthält.
+2. Die Nachricht geht über Kafka an die Zentrale.
+3. Die Zentrale schickt sofort ein **"SUCCESS"** zurück an das Lager.
+4. Alle empfangenen Daten werden automatisch in einer Textdatei (`warehouse_log.txt`) mitgeschrieben.
 
-### 1.3 Abruf der aggregierten Daten (Zentrale)
-Die Zentrale (Port 8081) sammelt alle eingehenden Nachrichten. Diese können nun über die REST-Schnittstelle abgerufen werden.
+### 1.3 Alle Daten in der Zentrale abrufen
 
-**Abruf als JSON:**
-```bash
-curl http://localhost:8081/central/stock
-```
-*Output:* `[{"warehouseId":"Wien-Hauptbahnhof","quantity":150,"timestamp":"..."}]`
+Man kann sich in der Zentrale jederzeit eine Liste aller gemeldeten Lagerstände ansehen:
 
-**Abruf als XML:**
-```bash
-curl http://localhost:8081/central/stock.xml
-```
+* **Als Liste (JSON):** `http://localhost:8081/central/stock`
+* **Als Dokument (XML):** `http://localhost:8081/central/stock.xml`
 
 ---
 
-## 2. Beantwortung der Fragestellungen
+## 2. Fragen & Antworten
 
-**1. Nennen Sie mindestens 4 Eigenschaften der Message Oriented Middleware?**
-1.  **Asynchronität:** Der Sender sendet die Nachricht ab und arbeitet sofort weiter, ohne auf die Antwort des Empfängers warten zu müssen.
-2.  **Lose Kopplung:** Sender und Empfänger sind voneinander entkoppelt (kennen sich nicht direkt, laufen auf unterschiedlichen Systemen/Plattformen).
-3.  **Persistenz (Zuverlässigkeit):** Nachrichten werden vom Broker zwischengespeichert ("Store and Forward"). Fällt der Empfänger aus, wird die Nachricht zugestellt, sobald er wieder online ist.
-4.  **Skalierbarkeit:** Es können einfach weitere Consumer hinzugefügt werden, um die Last zu verteilen (Load Balancing).
+**1. Nennen Sie 4 Eigenschaften von Message Oriented Middleware (MOM):**
 
-**2. Was versteht man unter einer transienten und synchronen Kommunikation?**
-*   **Synchron:** Der Sender blockiert und wartet ("handshake"), bis der Empfänger die Nachricht verarbeitet und geantwortet hat (z.B. klassischer HTTP Request oder Telefonanruf).
-*   **Transient:** Die Nachricht wird nicht dauerhaft gespeichert. Ist der Empfänger zum Zeitpunkt des Sendens nicht erreichbar oder fällt das Netzwerk aus, geht die Nachricht verloren (Gegenteil von persistenter Kommunikation).
+* **Asynchron:** Der Sender muss nicht warten, bis der Empfänger fertig ist.
+* **Lose Kopplung:** Die Programme müssen sich nicht direkt kennen.
+* **Speichern:** Nachrichten gehen nicht verloren, wenn der Empfänger kurz offline ist.
+* **Skalierbar:** Man kann einfach weitere Lager oder Empfänger hinzufügen.
 
-**3. Beschreiben Sie die Funktionsweise einer JMS Queue?**
-Eine Queue implementiert das **Point-to-Point (P2P)** Modell.
-*   Eine Nachricht wird von einem Sender in die Queue gelegt.
-*   Sie wird von genau **einem** Empfänger abgeholt und verarbeitet.
-*   Danach wird sie aus der Queue entfernt (Acknowledge).
-*   Dies eignet sich gut für Load Balancing (Verteilung von Aufgaben auf mehrere Worker).
+**2. Was ist synchrone und transiente Kommunikation?**
 
-**4. JMS Overview - Beschreiben Sie die wichtigsten JMS Klassen und deren Zusammenhang?**
-*   **ConnectionFactory:** Fabrik zum Erstellen einer Verbindung zum Message Broker.
-*   **Connection:** Eine aktive TCP/IP-Verbindung zum Provider.
-*   **Session:** Ein Thread-Kontext zum Senden und Empfangen von Nachrichten.
-*   **Destination:** Das Ziel der Nachricht (entweder Queue oder Topic).
-*   **MessageProducer:** Objekt zum Senden von Nachrichten an eine Destination.
-*   **MessageConsumer:** Objekt zum Empfangen von Nachrichten von einer Destination.
+* **Synchron:** Wie ein Telefonat – beide müssen gleichzeitig Zeit haben und einer wartet auf die Antwort des anderen.
+* **Transient:** Die Nachricht wird nicht gespeichert. Wenn der Empfänger nicht da ist, ist die Nachricht weg.
 
-**5. Beschreiben Sie die Funktionsweise eines JMS Topic?**
-Ein Topic implementiert das **Publish-Subscribe (Pub/Sub)** Modell.
-*   Eine Nachricht wird an ein Topic gesendet ("Publish").
-*   **Alle** Consumer, die dieses Topic abonniert haben ("Subscribe"), erhalten eine Kopie der Nachricht.
-*   Vergleichbar mit einem Radiosender (Einer sendet, viele hören zu).
+**3. Wie funktioniert eine JMS Queue?**
 
-**6. Was versteht man unter einem lose gekoppelten verteilten System? Nennen Sie ein Beispiel dazu. Warum spricht man hier von lose?**
-*   **Definition:** Ein System, bei dem die Komponenten so wenig wie möglich voneinander wissen müssen, um miteinander zu interagieren.
-*   **Beispiel:** Ein E-Mail-System. Ich sende eine Mail an den Server. Ich muss nicht wissen, welchen Computer mein Empfänger nutzt, welches Betriebssystem er hat oder ob er gerade online ist.
-*   **Warum "lose"?**
-    *   *Zeitlich:* Sender und Empfänger müssen nicht gleichzeitig laufen.
-    *   *Räumlich:* Die Komponenten kennen nur die Adresse der Middleware, nicht die IP des Partners.
-    *   *Technologisch:* Ein Java-Programm kann Nachrichten an ein Python-Programm senden, solange das Datenformat (z.B. JSON) vereinbart ist.
+Eine Queue arbeitet nach dem Prinzip **"Einer an Einen"**. Eine Nachricht wird in die Schlange gestellt und von genau einem Empfänger abgeholt. Danach ist die Nachricht weg.
+
+**4. Was sind die wichtigsten JMS-Bausteine?**
+
+* **ConnectionFactory:** Erstellt die Verbindung zum System.
+* **Connection & Session:** Der "Kanal", über den geredet wird.
+* **Destination:** Das Ziel (Queue oder Topic).
+* **Producer:** Derjenige, der die Nachricht schreibt.
+* **Consumer:** Derjenige, der die Nachricht liest.
+
+**5. Wie funktioniert ein JMS Topic?**
+
+Ein Topic arbeitet nach dem Prinzip **"Einer an Viele"**. Wie bei einem Radio-Sender: Ein Sender schickt die Nachricht raus, und alle, die zuhören (Abonnenten), bekommen sie gleichzeitig.
+
+**6. Was ist ein "lose gekoppeltes" System?**
+Das bedeutet, dass die Teile eines Systems unabhängig voneinander funktionieren.
+
+* **Beispiel:** Eine Bestellung im Online-Shop. Ich gebe die Bestellung auf (Sender). Der Verpacker im Lager (Empfänger) sieht das vielleicht erst Stunden später.
+* **Warum "lose"?** Weil es egal ist, wann der Empfänger arbeitet oder welche Technik er nutzt – die Nachricht (Bestellung) wartet einfach in der Mitte, bis sie gebraucht wird.
+
+---
+
+**Tipp für die Abgabe:**
+Wenn du gefragt wirst, warum wir Kafka statt "echtem" JMS nutzen: Sag einfach, dass Kafka moderner ist und viel größere Datenmengen (Big Data) verarbeiten kann als alte JMS-Systeme.
+
+Soll ich dir noch ein kurzes Beispiel für die `warehouse_log.txt` erstellen, damit du siehst, wie die Daten darin aussehen sollten?
